@@ -38,7 +38,7 @@ use uuid::Uuid;
 ///
 /// ## Usage
 ///
-/// Register `TracingLogger` as a middleware for your application using `.wrap` on `App`.  
+/// Register `TracingLogger` as a middleware for your application using `.wrap` on `App`.
 /// Add a `Subscriber` implementation to output logs to the console.
 ///
 /// ```rust
@@ -180,11 +180,11 @@ where
         let request_id = RequestId(Uuid::new_v4());
         let span = tracing::info_span!(
             "Request",
-            request_path = %req.path(),
-            user_agent = %user_agent,
-            client_ip_address = %req.connection_info().realip_remote_addr().unwrap_or(""),
             request_id = %request_id.0,
-            status_code = tracing::field::Empty,
+            client_ip_address = %req.connection_info().realip_remote_addr().unwrap_or(""),
+            http.target = %req.path(),
+            http.user_agent = %user_agent,
+            http.status_code = tracing::field::Empty,
         );
         req.extensions_mut().insert(request_id);
         let fut = self.service.call(req);
@@ -195,7 +195,7 @@ where
                     Ok(response) => response.response().status(),
                     Err(error) => error.as_response_error().status_code(),
                 };
-                Span::current().record("status_code", &status_code.as_u16());
+                Span::current().record("http.status_code", &status_code.as_u16());
                 outcome
             }
             .instrument(span),
