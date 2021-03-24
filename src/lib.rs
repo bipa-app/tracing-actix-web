@@ -166,15 +166,15 @@ where
         let fut = self
             .service
             .call(req)
-            .inspect(|outcome| {
+            .instrument(span.clone())
+            .inspect(move |outcome| {
                 let status_code = match outcome {
                     Ok(response) => response.response().status(),
                     Err(error) => error.as_response_error().status_code(),
                 };
 
-                Span::current().record("http.status_code", &status_code.as_u16());
-            })
-            .instrument(span);
+                span.record("http.status_code", &status_code.as_u16());
+            });
 
         Box::pin(fut)
     }
