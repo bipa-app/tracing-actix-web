@@ -93,11 +93,11 @@ use uuid::Uuid;
 /// [`log`]: https://docs.rs/log
 /// [`tracing`]: https://docs.rs/tracing
 pub struct TracingLogger {
-    service_name: &'static str,
+    service_name: String,
 }
 
 impl TracingLogger {
-    pub fn new(service_name: &'static str) -> TracingLogger {
+    pub fn new(service_name: String) -> TracingLogger {
         TracingLogger { service_name }
     }
 }
@@ -117,7 +117,7 @@ where
 
     fn new_transform(&self, service: S) -> Self::Future {
         ok(TracingLoggerMiddleware {
-            service_name: self.service_name,
+            service_name: self.service_name.clone(),
             service,
         })
     }
@@ -125,7 +125,7 @@ where
 
 #[doc(hidden)]
 pub struct TracingLoggerMiddleware<S> {
-    service_name: &'static str,
+    service_name: String,
     service: S,
 }
 
