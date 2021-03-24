@@ -15,8 +15,11 @@
 //! [`Logger`]: https://docs.rs/actix-web/3.0.2/actix_web/middleware/struct.Logger.html
 //! [`log`]: https://docs.rs/log
 //! [`tracing`]: https://docs.rs/tracing
-use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::Error;
+use actix_web::{
+    dev::{Service, ServiceRequest, ServiceResponse, Transform},
+    HttpMessage,
+};
 use futures::task::{Context, Poll};
 use futures::{
     future::{ok, Ready},
@@ -24,7 +27,6 @@ use futures::{
 };
 use std::future::Future;
 use std::pin::Pin;
-use tracing::Span;
 use tracing_futures::Instrument;
 use uuid::Uuid;
 
@@ -153,15 +155,18 @@ where
 
         let span = tracing::info_span!(
             "Request",
-            kind = "Request",
+            kind = "request",
             request_id = %Uuid::new_v4(),
             http.status_code = tracing::field::Empty,
+            enduser.id = tracing::field::Empty,
             service.name = %self.service_name,
             http.user_agent = %user_agent,
             http.method = %req.method(),
             http.target = %req.path(),
             http.route = %route,
         );
+
+        req.extensions_mut().insert(span.clone());
 
         let fut = self
             .service
