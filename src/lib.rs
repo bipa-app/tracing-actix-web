@@ -137,13 +137,16 @@ where
             .and_then(|h| h.to_str().ok())
             .unwrap_or("");
 
+        let route = req.match_pattern().unwrap_or(String::from(""));
+
         let span = tracing::info_span!(
             "Request",
             request_id = %Uuid::new_v4(),
-            http.target = %req.path(),
-            http.method = %req.method(),
-            http.user_agent = %user_agent,
             http.status_code = tracing::field::Empty,
+            http.user_agent = %user_agent,
+            http.method = %req.method(),
+            http.target = %req.path(),
+            http.route = %route,
         );
 
         let fut = self
