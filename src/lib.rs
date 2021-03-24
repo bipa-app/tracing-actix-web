@@ -153,6 +153,7 @@ where
 
         let span = tracing::info_span!(
             "Request",
+            kind = "Request",
             request_id = %Uuid::new_v4(),
             http.status_code = tracing::field::Empty,
             service.name = %self.service_name,
