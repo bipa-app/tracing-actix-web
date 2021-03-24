@@ -155,6 +155,7 @@ where
             kind = "request",
             request_id = %Uuid::new_v4(),
             http.status_code = tracing::field::Empty,
+            enduser.id = tracing::field::Empty,
             service.name = %self.service_name,
             http.user_agent = %user_agent,
             http.method = %req.method(),
