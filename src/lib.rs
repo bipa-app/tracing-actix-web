@@ -17,8 +17,11 @@
 //! [`tracing`]: https://docs.rs/tracing
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::Error;
-use futures::future::{ok, Ready};
 use futures::task::{Context, Poll};
+use futures::{
+    future::{ok, Ready},
+    FutureExt,
+};
 use std::future::Future;
 use std::pin::Pin;
 use tracing::Span;
@@ -38,7 +41,7 @@ use uuid::Uuid;
 ///
 /// ## Usage
 ///
-/// Register `TracingLogger` as a middleware for your application using `.wrap` on `App`.  
+/// Register `TracingLogger` as a middleware for your application using `.wrap` on `App`.
 /// Add a `Subscriber` implementation to output logs to the console.
 ///
 /// ```rust
@@ -131,28 +134,31 @@ where
         let user_agent = req
             .headers()
             .get("User-Agent")
-            .map(|h| h.to_str().unwrap_or(""))
+            .and_then(|h| h.to_str().ok())
             .unwrap_or("");
+
         let span = tracing::info_span!(
             "Request",
-            request_path = %req.path(),
-            user_agent = %user_agent,
-            client_ip_address = %req.connection_info().realip_remote_addr().unwrap_or(""),
             request_id = %Uuid::new_v4(),
-            status_code = tracing::field::Empty,
+            http.target = %req.path(),
+            http.method = %req.method(),
+            http.user_agent = %user_agent,
+            http.status_code = tracing::field::Empty,
         );
-        let fut = self.service.call(req);
-        Box::pin(
-            async move {
-                let outcome = fut.await;
-                let status_code = match &outcome {
+
+        let fut = self
+            .service
+            .call(req)
+            .inspect(|outcome| {
+                let status_code = match outcome {
                     Ok(response) => response.response().status(),
                     Err(error) => error.as_response_error().status_code(),
                 };
-                Span::current().record("status_code", &status_code.as_u16());
-                outcome
-            }
-            .instrument(span),
-        )
+
+                Span::current().record("http.status_code", &status_code.as_u16());
+            })
+            .instrument(span);
+
+        Box::pin(fut)
     }
 }
