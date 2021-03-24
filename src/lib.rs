@@ -24,7 +24,6 @@ use futures::{
 };
 use std::future::Future;
 use std::pin::Pin;
-use tracing::Span;
 use tracing_futures::Instrument;
 use uuid::Uuid;
 
