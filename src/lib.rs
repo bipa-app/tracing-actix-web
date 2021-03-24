@@ -90,7 +90,15 @@ use uuid::Uuid;
 /// [`Logger`]: https://docs.rs/actix-web/3.0.2/actix_web/middleware/struct.Logger.html
 /// [`log`]: https://docs.rs/log
 /// [`tracing`]: https://docs.rs/tracing
-pub struct TracingLogger;
+pub struct TracingLogger {
+    service_name: &'static str,
+}
+
+impl TracingLogger {
+    pub fn new(service_name: &'static str) -> TracingLogger {
+        TracingLogger { service_name }
+    }
+}
 
 impl<S, B> Transform<S> for TracingLogger
 where
@@ -106,12 +114,16 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ok(TracingLoggerMiddleware { service })
+        ok(TracingLoggerMiddleware {
+            service_name: self.service_name,
+            service,
+        })
     }
 }
 
 #[doc(hidden)]
 pub struct TracingLoggerMiddleware<S> {
+    service_name: &'static str,
     service: S,
 }
 
@@ -143,6 +155,7 @@ where
             "Request",
             request_id = %Uuid::new_v4(),
             http.status_code = tracing::field::Empty,
+            service.name = %self.service_name,
             http.user_agent = %user_agent,
             http.method = %req.method(),
             http.target = %req.path(),
