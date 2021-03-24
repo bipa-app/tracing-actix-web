@@ -15,8 +15,11 @@
 //! [`Logger`]: https://docs.rs/actix-web/3.0.2/actix_web/middleware/struct.Logger.html
 //! [`log`]: https://docs.rs/log
 //! [`tracing`]: https://docs.rs/tracing
-use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::Error;
+use actix_web::{
+    dev::{Service, ServiceRequest, ServiceResponse, Transform},
+    HttpMessage,
+};
 use futures::task::{Context, Poll};
 use futures::{
     future::{ok, Ready},
@@ -162,6 +165,8 @@ where
             http.target = %req.path(),
             http.route = %route,
         );
+
+        req.extensions_mut().insert(span.clone());
 
         let fut = self
             .service
