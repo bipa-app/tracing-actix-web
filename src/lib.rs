@@ -90,7 +90,15 @@ use uuid::Uuid;
 /// [`Logger`]: https://docs.rs/actix-web/3.0.2/actix_web/middleware/struct.Logger.html
 /// [`log`]: https://docs.rs/log
 /// [`tracing`]: https://docs.rs/tracing
-pub struct TracingLogger;
+pub struct TracingLogger {
+    service_name: &'static str,
+}
+
+impl TracingLogger {
+    pub fn new(service_name: &'static str) -> TracingLogger {
+        TracingLogger { service_name }
+    }
+}
 
 impl<S, B> Transform<S> for TracingLogger
 where
@@ -106,12 +114,16 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ok(TracingLoggerMiddleware { service })
+        ok(TracingLoggerMiddleware {
+            service_name: self.service_name,
+            service,
+        })
     }
 }
 
 #[doc(hidden)]
 pub struct TracingLoggerMiddleware<S> {
+    service_name: &'static str,
     service: S,
 }
 
@@ -137,27 +149,32 @@ where
             .and_then(|h| h.to_str().ok())
             .unwrap_or("");
 
+        let route = req.match_pattern().unwrap_or(String::from(""));
+
         let span = tracing::info_span!(
             "Request",
+            kind = "Request",
             request_id = %Uuid::new_v4(),
-            http.target = %req.path(),
-            http.method = %req.method(),
-            http.user_agent = %user_agent,
             http.status_code = tracing::field::Empty,
+            service.name = %self.service_name,
+            http.user_agent = %user_agent,
+            http.method = %req.method(),
+            http.target = %req.path(),
+            http.route = %route,
         );
 
         let fut = self
             .service
             .call(req)
-            .inspect(|outcome| {
+            .instrument(span.clone())
+            .inspect(move |outcome| {
                 let status_code = match outcome {
                     Ok(response) => response.response().status(),
                     Err(error) => error.as_response_error().status_code(),
                 };
 
-                Span::current().record("http.status_code", &status_code.as_u16());
-            })
-            .instrument(span);
+                span.record("http.status_code", &status_code.as_u16());
+            });
 
         Box::pin(fut)
     }
