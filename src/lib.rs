@@ -145,6 +145,12 @@ where
     }
 
     fn call(&mut self, req: ServiceRequest) -> Self::Future {
+        let path = req.path();
+
+        if path == "/healthz" {
+            return Box::pin(self.service.call(req));
+        }
+
         let user_agent = req
             .headers()
             .get("User-Agent")
@@ -162,7 +168,7 @@ where
             service.name = %self.service_name,
             http.user_agent = %user_agent,
             http.method = %req.method(),
-            http.target = %req.path(),
+            http.target = %path,
             http.route = %route,
         );
 
